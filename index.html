@@ -87,12 +87,41 @@
       pointer-events: none;
     }
 
+    .sparkles {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .sparkle {
+      position: absolute;
+      font-size: 18px;
+      animation: floaty 6s ease-in-out infinite;
+      filter: drop-shadow(0 2px 6px rgba(0,0,0,0.35));
+    }
+
+    .sparkle:nth-child(1) { top: 18%; left: 12%; animation-delay: 0s; }
+    .sparkle:nth-child(2) { top: 12%; right: 18%; animation-delay: 0.6s; }
+    .sparkle:nth-child(3) { bottom: 18%; left: 16%; animation-delay: 1.2s; }
+    .sparkle:nth-child(4) { bottom: 14%; right: 12%; animation-delay: 1.8s; }
+    .sparkle:nth-child(5) { top: 45%; left: 6%; animation-delay: 2.4s; }
+    .sparkle:nth-child(6) { top: 40%; right: 8%; animation-delay: 3s; }
+    .sparkle:nth-child(7) { top: 62%; left: 30%; animation-delay: 3.6s; }
+    .sparkle:nth-child(8) { top: 58%; right: 26%; animation-delay: 4.2s; }
+
+    @keyframes floaty {
+      0%, 100% { transform: translateY(0px) scale(1); opacity: 0.75; }
+      50% { transform: translateY(-12px) scale(1.08); opacity: 1; }
+    }
+
     .chip {
       position: relative;
       z-index: 1;
       padding: 10px 12px;
       border-radius: 999px;
-      background: rgba(0,0,0,0.40);
+      background: rgba(0,0,0,0.55);
       border: 1px solid rgba(255,255,255,0.16);
       backdrop-filter: blur(8px);
       font-weight: 700;
@@ -104,6 +133,8 @@
     }
 
     .dot { width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.35); }
+    .chipLabel { font-weight: 750; }
+    .chipMeta { font-size: 12px; opacity: 0.85; letter-spacing: 0.2px; }
 
     .grid {
       display: grid;
@@ -142,6 +173,13 @@
       font-size: 18px;
       font-weight: 800;
       cursor: pointer;
+    }
+    .step:focus-visible,
+    button.action:focus-visible,
+    .preset:focus-visible,
+    .tile:focus-visible {
+      outline: 3px solid rgba(255,255,255,0.7);
+      outline-offset: 2px;
     }
     .step:active { transform: translateY(1px); }
 
@@ -253,6 +291,17 @@
     }
     .preset:active { transform: translateY(1px); }
 
+    .kid-only { display: none; }
+
+    .status {
+      margin-top: 10px;
+      min-height: 20px;
+      font-size: 13px;
+      opacity: 0.82;
+      transition: opacity 0.2s ease;
+    }
+    .status.is-hidden { opacity: 0; }
+
     .history {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -280,12 +329,17 @@
     }
 
     .hint { opacity: 0.72; font-size: 12px; margin-top: 10px; line-height: 1.35; }
+    .hint strong { color: #fff; }
 
     /* Kid mode: hide nerdy stuff + make everything bigger */
     body.kid .sub { display: none; }
     body.kid .meta { display: none; }
     body.kid .hint { display: none; }
     body.kid .chip { font-size: 18px; }
+    body.kid .chipMeta { display: none; }
+    body.kid .status { display: none; }
+    body.kid .kid-only { display: inline-flex; }
+    body.kid .sparkles { opacity: 1; }
 
     @media (max-width: 860px) {
       .wrap { grid-template-columns: 1fr; }
@@ -312,9 +366,22 @@
       </div>
 
       <div id="preview" class="preview">
+        <div class="sparkles" aria-hidden="true">
+          <span class="sparkle">✨</span>
+          <span class="sparkle">🌟</span>
+          <span class="sparkle">💫</span>
+          <span class="sparkle">✨</span>
+          <span class="sparkle">🎈</span>
+          <span class="sparkle">🫧</span>
+          <span class="sparkle">⭐</span>
+          <span class="sparkle">🎉</span>
+        </div>
         <div class="chip">
           <span id="dot" class="dot"></span>
-          <span id="chipLabel">#FFFFFF</span>
+          <div>
+            <div class="chipLabel" id="chipLabel">Current color</div>
+            <div class="chipMeta" id="chipMeta">#FFFFFF</div>
+          </div>
         </div>
       </div>
 
@@ -390,10 +457,12 @@
         <button class="action" id="copyHex">Copy HEX</button>
         <button class="action" id="reset">Reset</button>
         <button class="action" id="clear">Clear swatches</button>
+        <button class="action kid-only" id="surprise">Surprise me 🎉</button>
       </div>
+      <div id="status" class="status is-hidden" role="status" aria-live="polite"></div>
 
       <p class="hint">
-        Touch tips: the slider thumbs are bigger, buttons hit 44px minimum, and +/− makes it easy for small hands.
+        Touch tips: the slider thumbs are bigger, buttons hit 44px minimum, and +/− makes it easy for small hands. <strong>Try saving a swatch</strong> to start your palette.
       </p>
     </section>
 
@@ -422,15 +491,18 @@
         preview: $('preview'),
         dot: $('dot'),
         chipLabel: $('chipLabel'),
+        chipMeta: $('chipMeta'),
         rgbLabel: $('rgbLabel'),
         cmyLabel: $('cmyLabel'),
         hexCode: $('hexCode'),
+        status: $('status'),
       },
       actions: {
         save: $('save'),
         copyHex: $('copyHex'),
         reset: $('reset'),
         clear: $('clear'),
+        surprise: $('surprise'),
         kidMode: $('kidMode'),
       },
       history: {
@@ -539,9 +611,9 @@
       elements.output.preview.style.background = `rgb(${r}, ${g}, ${b})`;
       elements.output.dot.style.background = `rgb(${r}, ${g}, ${b})`;
 
-      // Big, friendly label in kid mode. Nerd label otherwise.
       const isKid = document.body.classList.contains('kid');
-      elements.output.chipLabel.textContent = isKid ? `🎨 ${hex}` : hex;
+      elements.output.chipLabel.textContent = isKid ? '🎨 Color magic' : 'Current color';
+      elements.output.chipMeta.textContent = hex;
 
       elements.output.rgbLabel.textContent = `rgb(${r}, ${g}, ${b})`;
       elements.output.cmyLabel.textContent = `cmykw(${s.c}%, ${s.m}%, ${s.y}%, ${s.k}%, ${s.w}%)`;
@@ -554,6 +626,19 @@
       elements.pct.w.textContent = `${s.w}%`;
     }
 
+    function surprise() {
+      const randomStep = () => Math.round(Math.random() * 20) * 5;
+      state.write({
+        c: randomStep(),
+        m: randomStep(),
+        y: randomStep(),
+        k: randomStep(),
+        w: randomStep(),
+      });
+      render();
+      flashStatus('Surprise color!');
+    }
+
     function renderHistory() {
       const swatches = state.loadSwatches();
       const root = elements.history.root;
@@ -562,7 +647,7 @@
       if (!swatches.length) {
         const empty = document.createElement('div');
         empty.className = 'hint';
-        empty.textContent = 'No swatches saved yet.';
+        empty.textContent = 'No swatches saved yet. Save one to build your palette.';
         root.appendChild(empty);
         return;
       }
@@ -572,6 +657,8 @@
         tile.className = 'tile';
         tile.style.background = s.hex;
         tile.title = `Tap to load ${s.hex}`;
+        tile.setAttribute('role', 'button');
+        tile.setAttribute('tabindex', '0');
 
         const label = document.createElement('small');
         const isKid = document.body.classList.contains('kid');
@@ -580,9 +667,18 @@
         tile.appendChild(document.createElement('div'));
         tile.appendChild(label);
 
-        tile.addEventListener('click', () => {
+        const applySwatch = () => {
           state.write(s);
           render();
+          flashStatus(`Loaded ${s.hex}.`);
+        };
+
+        tile.addEventListener('click', applySwatch);
+        tile.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            applySwatch();
+          }
         });
 
         root.appendChild(tile);
@@ -603,6 +699,17 @@
       filtered.unshift(entry);
       state.saveSwatches(filtered);
       renderHistory();
+      flashStatus(`Saved ${hex} to swatches.`);
+    }
+
+    function flashStatus(message) {
+      const status = elements.output.status;
+      status.textContent = message;
+      status.classList.remove('is-hidden');
+      clearTimeout(status._timer);
+      status._timer = setTimeout(() => {
+        status.classList.add('is-hidden');
+      }, 1400);
     }
 
     async function copyHex() {
@@ -610,6 +717,7 @@
       try {
         await navigator.clipboard.writeText(text);
         elements.actions.copyHex.textContent = 'Copied ✅';
+        flashStatus(`Copied ${text}.`);
         setTimeout(() => (elements.actions.copyHex.textContent = 'Copy HEX'), 900);
       } catch {
         const ta = document.createElement('textarea');
@@ -619,6 +727,7 @@
         document.execCommand('copy');
         ta.remove();
         elements.actions.copyHex.textContent = 'Copied ✅';
+        flashStatus(`Copied ${text}.`);
         setTimeout(() => (elements.actions.copyHex.textContent = 'Copy HEX'), 900);
       }
     }
@@ -673,11 +782,14 @@
     elements.actions.reset.addEventListener('click', () => {
       state.write({ c: 0, m: 0, y: 0, k: 0, w: 0 });
       render();
+      flashStatus('Reset to zero.');
     });
     elements.actions.clear.addEventListener('click', () => {
       state.clearSwatches();
       renderHistory();
+      flashStatus('Cleared all swatches.');
     });
+    elements.actions.surprise.addEventListener('click', surprise);
     elements.actions.kidMode.addEventListener('change', (e) => setKidMode(e.target.checked));
 
     // Init
