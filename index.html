@@ -687,6 +687,7 @@
       },
       output: {
         preview: $('preview'),
+        successOverlay: $('successOverlay'),
         dot: $('dot'),
         chipLabel: $('chipLabel'),
         chipMeta: $('chipMeta'),
@@ -696,6 +697,10 @@
         status: $('status'),
         stickerRow: $('stickerRow'),
         stickerMessage: $('stickerMessage'),
+        targetSwatch: $('targetSwatch'),
+        targetPrompt: $('targetPrompt'),
+        gameStatus: $('gameStatus'),
+        targetHex: $('targetHex'),
       },
       actions: {
         save: $('save'),
@@ -719,6 +724,7 @@
       key: 'cmy_swatches',
       kidKey: 'cmy_kid_mode',
       gameKey: 'cmy_game_mode',
+      stickerKey: 'cmy_sticker_count',
       clamp01: (v) => Math.max(0, Math.min(1, v)),
       clampPct: (v) => Math.max(0, Math.min(100, Math.round(v))),
       toHex2: (n) => n.toString(16).padStart(2, '0').toUpperCase(),
@@ -798,6 +804,14 @@
         try { localStorage.setItem(this.kidKey, on ? '1' : '0'); } catch {}
       },
 
+      loadGameMode() {
+        try { return localStorage.getItem(this.gameKey) === '1'; } catch { return false; }
+      },
+
+      saveGameMode(on) {
+        try { localStorage.setItem(this.gameKey, on ? '1' : '0'); } catch {}
+      },
+
       loadStickerCount() {
         try {
           const raw = localStorage.getItem(this.stickerKey);
@@ -863,7 +877,7 @@
       }, 1600);
     }
 
-    function checkMatch(current) {
+    function checkSavedMatch(current) {
       const swatches = state.loadSwatches();
       if (!swatches.length) {
         successState.isMatched = false;
@@ -908,7 +922,7 @@
       elements.pct.k.textContent = `${s.k}%`;
       elements.pct.w.textContent = `${s.w}%`;
 
-      checkMatch({ r, g, b });
+      checkSavedMatch({ r, g, b });
       checkForStickerMatch(s);
     }
 
@@ -918,13 +932,20 @@
         elements.output.targetSwatch.classList.add('is-empty');
         elements.output.targetSwatch.style.background = '';
         elements.output.targetPrompt.textContent = 'Press “New round” to get a challenge!';
+        if (elements.output.targetHex) {
+          elements.output.targetHex.textContent = 'Tap “Set target”';
+        }
         return;
       }
 
       const { r, g, b } = state.cmykwToRgb(target.c, target.m, target.y, target.k, target.w);
+      const hex = state.rgbToHex(r, g, b);
       elements.output.targetSwatch.classList.remove('is-empty');
       elements.output.targetSwatch.style.background = `rgb(${r}, ${g}, ${b})`;
       elements.output.targetPrompt.textContent = target.prompt;
+      if (elements.output.targetHex) {
+        elements.output.targetHex.textContent = hex;
+      }
     }
 
     function surprise() {
@@ -1111,6 +1132,52 @@
       renderHistory();
     }
 
+    function setGameMode(on) {
+      document.body.classList.toggle('game', !!on);
+      elements.actions.gameMode.checked = !!on;
+      state.saveGameMode(!!on);
+      renderTarget();
+    }
+
+    function setTarget() {
+      const current = state.read();
+      gameState.target = {
+        ...current,
+        prompt: 'Match your saved target!',
+      };
+      renderTarget();
+      flashGameStatus('Target saved! Mix to match it.');
+    }
+
+    function checkMatch() {
+      if (!gameState.target) {
+        flashGameStatus('Set a target first.');
+        return;
+      }
+      const current = state.read();
+      const currentRgb = state.cmykwToRgb(current.c, current.m, current.y, current.k, current.w);
+      const targetRgb = state.cmykwToRgb(
+        gameState.target.c,
+        gameState.target.m,
+        gameState.target.y,
+        gameState.target.k,
+        gameState.target.w
+      );
+
+      const distance = Math.hypot(
+        currentRgb.r - targetRgb.r,
+        currentRgb.g - targetRgb.g,
+        currentRgb.b - targetRgb.b
+      );
+
+      const threshold = 60;
+      if (distance <= threshold) {
+        flashGameStatus('You matched it! 🎯');
+      } else {
+        flashGameStatus('Not quite—keep tweaking!');
+      }
+    }
+
     function newRound() {
       const randomStep = () => Math.round(Math.random() * 20) * 5;
       const useRandom = Math.random() < 0.35;
@@ -1220,6 +1287,7 @@
 
     // Init
     setKidMode(state.loadKidMode());
+    setGameMode(state.loadGameMode());
     renderStickers();
     render();
     renderTarget();
