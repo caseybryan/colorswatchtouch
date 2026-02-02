@@ -41,6 +41,12 @@
       margin-bottom: 10px;
     }
 
+    .toggles {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
     h1 {
       margin: 0;
       font-size: 22px;
@@ -68,6 +74,11 @@
       min-height: 44px; /* iOS touch target */
     }
     .tog input { width: 18px; height: 18px; }
+
+    .sandbox-only {}
+    .game-only { display: none; }
+    body.game .sandbox-only { display: none; }
+    body.game .game-only { display: inline-flex; }
 
     .preview {
       border-radius: 18px;
@@ -355,10 +366,16 @@
           <h1>CMYK + White Color Mixer</h1>
           <p class="sub">Drag sliders, tap +/−, save swatches. Kid Mode hides the hex gobbledygook.</p>
         </div>
-        <label class="tog" title="Kid Mode">
-          <input id="kidMode" type="checkbox" />
-          Kid Mode 🧒
-        </label>
+        <div class="toggles">
+          <label class="tog" title="Kid Mode">
+            <input id="kidMode" type="checkbox" />
+            Kid Mode 🧒
+          </label>
+          <label class="tog" title="Game Mode">
+            <input id="gameMode" type="checkbox" />
+            Game Mode 🎯
+          </label>
+        </div>
       </div>
 
       <div id="preview" class="preview">
@@ -442,6 +459,10 @@
           <b>HEX</b>
           <code id="hexCode">#FFFFFF</code>
         </div>
+        <div class="pill game-only">
+          <b>Target</b>
+          <code id="targetHex">Tap “Set target”</code>
+        </div>
         <div class="pill">
           <b>Note</b>
           <code>Not print-profile accurate, just a fun learning tool.</code>
@@ -449,9 +470,11 @@
       </div>
 
       <div class="btns">
-        <button class="action" id="save">Save swatch</button>
-        <button class="action" id="copyHex">Copy HEX</button>
-        <button class="action" id="reset">Reset</button>
+        <button class="action sandbox-only" id="save">Save swatch</button>
+        <button class="action sandbox-only" id="copyHex">Copy HEX</button>
+        <button class="action sandbox-only" id="reset">Reset</button>
+        <button class="action game-only" id="setTarget">Set target</button>
+        <button class="action game-only" id="checkMatch">Check match</button>
         <button class="action" id="clear">Clear swatches</button>
         <button class="action kid-only" id="surprise">Surprise me 🎉</button>
       </div>
@@ -500,6 +523,9 @@
         clear: $('clear'),
         surprise: $('surprise'),
         kidMode: $('kidMode'),
+        gameMode: $('gameMode'),
+        setTarget: $('setTarget'),
+        checkMatch: $('checkMatch'),
       },
       history: {
         root: $('history'),
@@ -509,6 +535,7 @@
     const state = {
       key: 'cmy_swatches',
       kidKey: 'cmy_kid_mode',
+      gameKey: 'cmy_game_mode',
       clamp01: (v) => Math.max(0, Math.min(1, v)),
       clampPct: (v) => Math.max(0, Math.min(100, Math.round(v))),
       toHex2: (n) => n.toString(16).padStart(2, '0').toUpperCase(),
@@ -586,6 +613,14 @@
 
       saveKidMode(on) {
         try { localStorage.setItem(this.kidKey, on ? '1' : '0'); } catch {}
+      },
+
+      loadGameMode() {
+        try { return localStorage.getItem(this.gameKey) === '1'; } catch { return false; }
+      },
+
+      saveGameMode(on) {
+        try { localStorage.setItem(this.gameKey, on ? '1' : '0'); } catch {}
       }
     };
 
@@ -744,6 +779,44 @@
       renderHistory();
     }
 
+    let targetHex = null;
+    const targetLabel = $('targetHex');
+
+    function setGameMode(on) {
+      document.body.classList.toggle('game', !!on);
+      elements.actions.gameMode.checked = !!on;
+      state.saveGameMode(!!on);
+    }
+
+    function setTarget() {
+      const randomStep = () => Math.round(Math.random() * 20) * 5;
+      const { r, g, b } = state.cmykwToRgb(
+        randomStep(),
+        randomStep(),
+        randomStep(),
+        randomStep(),
+        randomStep(),
+      );
+      targetHex = state.rgbToHex(r, g, b);
+      if (targetLabel) {
+        targetLabel.textContent = targetHex;
+      }
+      flashStatus(`Target set to ${targetHex}.`);
+    }
+
+    function checkMatch() {
+      if (!targetHex) {
+        flashStatus('Set a target first.');
+        return;
+      }
+      const currentHex = elements.output.hexCode.textContent;
+      if (currentHex === targetHex) {
+        flashStatus(`Perfect match! ${currentHex}`);
+      } else {
+        flashStatus(`Not yet. Target is ${targetHex}.`);
+      }
+    }
+
     // Wire sliders
     const i = elements.inputs;
     [i.c, i.m, i.y, i.k, i.w].forEach(rng => rng.addEventListener('input', () => {
@@ -787,9 +860,13 @@
     });
     elements.actions.surprise.addEventListener('click', surprise);
     elements.actions.kidMode.addEventListener('change', (e) => setKidMode(e.target.checked));
+    elements.actions.gameMode.addEventListener('change', (e) => setGameMode(e.target.checked));
+    elements.actions.setTarget.addEventListener('click', setTarget);
+    elements.actions.checkMatch.addEventListener('click', checkMatch);
 
     // Init
     setKidMode(state.loadKidMode());
+    setGameMode(state.loadGameMode());
     render();
     renderHistory();
   </script>
