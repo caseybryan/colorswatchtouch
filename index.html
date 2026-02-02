@@ -300,6 +300,35 @@
     }
     .status.is-hidden { opacity: 0; }
 
+    .stickers {
+      margin-top: 12px;
+      display: grid;
+      gap: 6px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(0,0,0,0.22);
+      min-height: 44px;
+    }
+
+    .sticker-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      font-size: 20px;
+      letter-spacing: 2px;
+    }
+
+    .sticker-message {
+      font-size: 13px;
+      opacity: 0.9;
+      transition: opacity 0.2s ease;
+    }
+
+    .sticker-message.is-hidden {
+      opacity: 0;
+    }
+
     .history {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -456,6 +485,10 @@
         <button class="action kid-only" id="surprise">Surprise me 🎉</button>
       </div>
       <div id="status" class="status is-hidden" role="status" aria-live="polite"></div>
+      <div class="stickers" aria-live="polite">
+        <div id="stickerRow" class="sticker-row" aria-label="Sticker collection"></div>
+        <div id="stickerMessage" class="sticker-message is-hidden">You earned a sticker!</div>
+      </div>
 
       <p class="hint">
         Touch tips: the slider thumbs are bigger, buttons hit 44px minimum, and +/− makes it easy for small hands. <strong>Try saving a swatch</strong> to start your palette.
@@ -492,6 +525,8 @@
         cmyLabel: $('cmyLabel'),
         hexCode: $('hexCode'),
         status: $('status'),
+        stickerRow: $('stickerRow'),
+        stickerMessage: $('stickerMessage'),
       },
       actions: {
         save: $('save'),
@@ -509,6 +544,7 @@
     const state = {
       key: 'cmy_swatches',
       kidKey: 'cmy_kid_mode',
+      stickerKey: 'cmy_sticker_count',
       clamp01: (v) => Math.max(0, Math.min(1, v)),
       clampPct: (v) => Math.max(0, Math.min(100, Math.round(v))),
       toHex2: (n) => n.toString(16).padStart(2, '0').toUpperCase(),
@@ -586,6 +622,20 @@
 
       saveKidMode(on) {
         try { localStorage.setItem(this.kidKey, on ? '1' : '0'); } catch {}
+      },
+
+      loadStickerCount() {
+        try {
+          const raw = localStorage.getItem(this.stickerKey);
+          const parsed = Number.parseInt(raw ?? '0', 10);
+          return Number.isNaN(parsed) ? 0 : Math.max(0, parsed);
+        } catch {
+          return 0;
+        }
+      },
+
+      saveStickerCount(count) {
+        try { localStorage.setItem(this.stickerKey, String(Math.max(0, count))); } catch {}
       }
     };
 
@@ -598,6 +648,9 @@
       night: { c: 30, m: 30, y: 0,  k: 70, w: 0  },
       snow:  { c: 0,  m: 0,  y: 0,  k: 0,  w: 85 },
     };
+
+    const stickerEmojis = ['⭐', '🐶', '🦄'];
+    let lastMatchedKey = null;
 
     function render() {
       const s = state.read();
@@ -620,6 +673,8 @@
       elements.pct.y.textContent = `${s.y}%`;
       elements.pct.k.textContent = `${s.k}%`;
       elements.pct.w.textContent = `${s.w}%`;
+
+      checkForStickerMatch(s);
     }
 
     function surprise() {
@@ -679,6 +734,53 @@
 
         root.appendChild(tile);
       }
+    }
+
+    function renderStickers() {
+      const count = state.loadStickerCount();
+      const row = elements.output.stickerRow;
+      row.innerHTML = '';
+      if (!count) {
+        row.textContent = 'No stickers yet. Match a swatch to earn one!';
+        return;
+      }
+      for (let i = 0; i < count; i += 1) {
+        const span = document.createElement('span');
+        span.textContent = stickerEmojis[i % stickerEmojis.length];
+        row.appendChild(span);
+      }
+    }
+
+    function flashStickerMessage() {
+      const message = elements.output.stickerMessage;
+      message.classList.remove('is-hidden');
+      clearTimeout(message._timer);
+      message._timer = setTimeout(() => {
+        message.classList.add('is-hidden');
+      }, 1600);
+    }
+
+    function checkForStickerMatch(s) {
+      const swatches = state.loadSwatches();
+      if (!swatches.length) {
+        lastMatchedKey = null;
+        return;
+      }
+      const match = swatches.find(
+        (item) => item.c === s.c && item.m === s.m && item.y === s.y && item.k === s.k && item.w === s.w
+      );
+      if (match) {
+        const matchKey = `${s.c}-${s.m}-${s.y}-${s.k}-${s.w}`;
+        if (matchKey !== lastMatchedKey) {
+          lastMatchedKey = matchKey;
+          const nextCount = state.loadStickerCount() + 1;
+          state.saveStickerCount(nextCount);
+          renderStickers();
+          flashStickerMessage();
+        }
+        return;
+      }
+      lastMatchedKey = null;
     }
 
     function pushSwatch() {
@@ -790,6 +892,7 @@
 
     // Init
     setKidMode(state.loadKidMode());
+    renderStickers();
     render();
     renderHistory();
   </script>
