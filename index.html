@@ -116,6 +116,66 @@
       50% { transform: translateY(-12px) scale(1.08); opacity: 1; }
     }
 
+    .success-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.35s ease;
+    }
+
+    .success-overlay::before {
+      content: "";
+      position: absolute;
+      inset: 12%;
+      border-radius: 22px;
+      background: radial-gradient(circle, rgba(255,255,255,0.55), transparent 70%);
+      opacity: 0;
+      transform: scale(0.85);
+    }
+
+    .success-overlay.is-active {
+      opacity: 1;
+    }
+
+    .success-overlay.is-active::before {
+      animation: successGlow 1.5s ease forwards;
+    }
+
+    .success-confetti {
+      position: absolute;
+      font-size: 20px;
+      opacity: 0;
+      filter: drop-shadow(0 3px 6px rgba(0,0,0,0.35));
+    }
+
+    .success-overlay.is-active .success-confetti {
+      animation: confettiPop 1.5s ease forwards;
+    }
+
+    .success-confetti:nth-child(1) { top: 18%; left: 20%; animation-delay: 0s; }
+    .success-confetti:nth-child(2) { top: 14%; right: 22%; animation-delay: 0.08s; }
+    .success-confetti:nth-child(3) { top: 38%; left: 12%; animation-delay: 0.16s; }
+    .success-confetti:nth-child(4) { top: 32%; right: 12%; animation-delay: 0.24s; }
+    .success-confetti:nth-child(5) { bottom: 26%; left: 18%; animation-delay: 0.32s; }
+    .success-confetti:nth-child(6) { bottom: 22%; right: 20%; animation-delay: 0.4s; }
+    .success-confetti:nth-child(7) { top: 50%; left: 46%; animation-delay: 0.48s; }
+    .success-confetti:nth-child(8) { top: 58%; right: 40%; animation-delay: 0.56s; }
+    .success-confetti:nth-child(9) { top: 24%; left: 50%; animation-delay: 0.64s; }
+    .success-confetti:nth-child(10) { bottom: 14%; left: 42%; animation-delay: 0.72s; }
+
+    @keyframes successGlow {
+      0% { opacity: 0; transform: scale(0.7); }
+      30% { opacity: 0.85; transform: scale(1); }
+      100% { opacity: 0; transform: scale(1.05); }
+    }
+
+    @keyframes confettiPop {
+      0% { transform: translateY(8px) scale(0.4); opacity: 0; }
+      35% { opacity: 1; }
+      100% { transform: translateY(-18px) scale(1); opacity: 0; }
+    }
+
     .chip {
       position: relative;
       z-index: 1;
@@ -362,6 +422,18 @@
       </div>
 
       <div id="preview" class="preview">
+        <div id="successOverlay" class="success-overlay" aria-hidden="true">
+          <span class="success-confetti">✨</span>
+          <span class="success-confetti">🎉</span>
+          <span class="success-confetti">🌟</span>
+          <span class="success-confetti">🎊</span>
+          <span class="success-confetti">💫</span>
+          <span class="success-confetti">⭐</span>
+          <span class="success-confetti">🪩</span>
+          <span class="success-confetti">🫧</span>
+          <span class="success-confetti">✨</span>
+          <span class="success-confetti">🎈</span>
+        </div>
         <div class="sparkles" aria-hidden="true">
           <span class="sparkle">✨</span>
           <span class="sparkle">🌟</span>
@@ -492,6 +564,7 @@
         cmyLabel: $('cmyLabel'),
         hexCode: $('hexCode'),
         status: $('status'),
+        successOverlay: $('successOverlay'),
       },
       actions: {
         save: $('save'),
@@ -599,6 +672,62 @@
       snow:  { c: 0,  m: 0,  y: 0,  k: 0,  w: 85 },
     };
 
+    const successState = {
+      isMatched: false,
+      timer: null,
+      threshold: 24,
+    };
+
+    function hexToRgb(hex) {
+      const clean = hex.replace('#', '');
+      if (clean.length !== 6) return null;
+      const r = parseInt(clean.slice(0, 2), 16);
+      const g = parseInt(clean.slice(2, 4), 16);
+      const b = parseInt(clean.slice(4, 6), 16);
+      if ([r, g, b].some(Number.isNaN)) return null;
+      return { r, g, b };
+    }
+
+    function colorDistance(a, b) {
+      const dr = a.r - b.r;
+      const dg = a.g - b.g;
+      const db = a.b - b.b;
+      return Math.sqrt(dr * dr + dg * dg + db * db);
+    }
+
+    function triggerSuccessOverlay() {
+      const overlay = elements.output.successOverlay;
+      if (!overlay) return;
+      overlay.classList.remove('is-active');
+      void overlay.offsetWidth;
+      overlay.classList.add('is-active');
+      clearTimeout(successState.timer);
+      successState.timer = setTimeout(() => {
+        overlay.classList.remove('is-active');
+      }, 1600);
+    }
+
+    function checkMatch(current) {
+      const swatches = state.loadSwatches();
+      if (!swatches.length) {
+        successState.isMatched = false;
+        return;
+      }
+
+      let minDistance = Infinity;
+      for (const swatch of swatches) {
+        const rgb = hexToRgb(swatch.hex);
+        if (!rgb) continue;
+        minDistance = Math.min(minDistance, colorDistance(current, rgb));
+      }
+
+      const isMatched = minDistance <= successState.threshold;
+      if (isMatched && !successState.isMatched) {
+        triggerSuccessOverlay();
+      }
+      successState.isMatched = isMatched;
+    }
+
     function render() {
       const s = state.read();
       const { r, g, b } = state.cmykwToRgb(s.c, s.m, s.y, s.k, s.w);
@@ -620,6 +749,8 @@
       elements.pct.y.textContent = `${s.y}%`;
       elements.pct.k.textContent = `${s.k}%`;
       elements.pct.w.textContent = `${s.w}%`;
+
+      checkMatch({ r, g, b });
     }
 
     function surprise() {
