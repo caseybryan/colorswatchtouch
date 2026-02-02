@@ -41,6 +41,12 @@
       margin-bottom: 10px;
     }
 
+    .toggles {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
     h1 {
       margin: 0;
       font-size: 22px;
@@ -68,6 +74,11 @@
       min-height: 44px; /* iOS touch target */
     }
     .tog input { width: 18px; height: 18px; }
+
+    .sandbox-only {}
+    .game-only { display: none; }
+    body.game .sandbox-only { display: none; }
+    body.game .game-only { display: inline-flex; }
 
     .preview {
       border-radius: 18px;
@@ -428,10 +439,16 @@
           <h1>CMYK + White Color Mixer</h1>
           <p class="sub">Drag sliders, tap +/−, save swatches. Kid Mode hides the hex gobbledygook.</p>
         </div>
-        <label class="tog" title="Kid Mode">
-          <input id="kidMode" type="checkbox" />
-          Kid Mode 🧒
-        </label>
+        <div class="toggles">
+          <label class="tog" title="Kid Mode">
+            <input id="kidMode" type="checkbox" />
+            Kid Mode 🧒
+          </label>
+          <label class="tog" title="Game Mode">
+            <input id="gameMode" type="checkbox" />
+            Game Mode 🎯
+          </label>
+        </div>
       </div>
 
       <div id="preview" class="preview">
@@ -545,6 +562,10 @@
           <b>HEX</b>
           <code id="hexCode">#FFFFFF</code>
         </div>
+        <div class="pill game-only">
+          <b>Target</b>
+          <code id="targetHex">Tap “Set target”</code>
+        </div>
         <div class="pill">
           <b>Note</b>
           <code>Not print-profile accurate, just a fun learning tool.</code>
@@ -552,9 +573,11 @@
       </div>
 
       <div class="btns">
-        <button class="action" id="save">Save swatch</button>
-        <button class="action" id="copyHex">Copy HEX</button>
-        <button class="action" id="reset">Reset</button>
+        <button class="action sandbox-only" id="save">Save swatch</button>
+        <button class="action sandbox-only" id="copyHex">Copy HEX</button>
+        <button class="action sandbox-only" id="reset">Reset</button>
+        <button class="action game-only" id="setTarget">Set target</button>
+        <button class="action game-only" id="checkMatch">Check match</button>
         <button class="action" id="clear">Clear swatches</button>
         <button class="action kid-only" id="surprise">Surprise me 🎉</button>
       </div>
@@ -611,6 +634,9 @@
         newRound: $('newRound'),
         checkTarget: $('checkTarget'),
         kidMode: $('kidMode'),
+        gameMode: $('gameMode'),
+        setTarget: $('setTarget'),
+        checkMatch: $('checkMatch'),
       },
       history: {
         root: $('history'),
@@ -620,7 +646,7 @@
     const state = {
       key: 'cmy_swatches',
       kidKey: 'cmy_kid_mode',
-      stickerKey: 'cmy_sticker_count',
+      gameKey: 'cmy_game_mode',
       clamp01: (v) => Math.max(0, Math.min(1, v)),
       clampPct: (v) => Math.max(0, Math.min(100, Math.round(v))),
       toHex2: (n) => n.toString(16).padStart(2, '0').toUpperCase(),
@@ -1060,6 +1086,9 @@
     elements.actions.newRound.addEventListener('click', newRound);
     elements.actions.checkTarget.addEventListener('click', checkTarget);
     elements.actions.kidMode.addEventListener('change', (e) => setKidMode(e.target.checked));
+    elements.actions.gameMode.addEventListener('change', (e) => setGameMode(e.target.checked));
+    elements.actions.setTarget.addEventListener('click', setTarget);
+    elements.actions.checkMatch.addEventListener('click', checkMatch);
 
     // Init
     setKidMode(state.loadKidMode());
