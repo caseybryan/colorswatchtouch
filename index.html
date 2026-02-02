@@ -153,6 +153,49 @@
       margin-top: 14px;
     }
 
+    .target-area {
+      margin-top: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .target-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .target-title {
+      font-weight: 750;
+      letter-spacing: 0.2px;
+    }
+
+    .target-prompt {
+      margin-top: 4px;
+      font-size: 14px;
+      opacity: 0.85;
+    }
+
+    .target-swatch {
+      width: 110px;
+      height: 110px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(0,0,0,0.2);
+    }
+
+    .target-swatch.is-empty {
+      background: repeating-linear-gradient(
+        45deg,
+        rgba(255,255,255,0.08),
+        rgba(255,255,255,0.08) 10px,
+        rgba(0,0,0,0.15) 10px,
+        rgba(0,0,0,0.15) 20px
+      );
+    }
+
     .row {
       display: grid;
       grid-template-columns: 120px 52px 1fr 52px 64px;
@@ -311,6 +354,35 @@
     }
     .status.is-hidden { opacity: 0; }
 
+    .stickers {
+      margin-top: 12px;
+      display: grid;
+      gap: 6px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(0,0,0,0.22);
+      min-height: 44px;
+    }
+
+    .sticker-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      font-size: 20px;
+      letter-spacing: 2px;
+    }
+
+    .sticker-message {
+      font-size: 13px;
+      opacity: 0.9;
+      transition: opacity 0.2s ease;
+    }
+
+    .sticker-message.is-hidden {
+      opacity: 0;
+    }
+
     .history {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -347,6 +419,7 @@
     body.kid .chip { font-size: 18px; }
     body.kid .chipMeta { display: none; }
     body.kid .status { display: none; }
+    body.kid .pct { display: none; }
 
     @media (max-width: 860px) {
       .wrap { grid-template-columns: 1fr; }
@@ -398,6 +471,21 @@
         </div>
       </div>
 
+      <div class="target-area" aria-live="polite">
+        <div class="target-header">
+          <div>
+            <div class="target-title">Target color</div>
+            <div class="target-prompt" id="targetPrompt">Press “New round” to get a challenge!</div>
+          </div>
+          <div id="targetSwatch" class="target-swatch is-empty" aria-label="Target color swatch"></div>
+        </div>
+        <div class="btns">
+          <button class="action" id="newRound">New round</button>
+          <button class="action" id="checkTarget">Check</button>
+        </div>
+        <div id="gameStatus" class="game-status is-hidden" role="status" aria-live="polite"></div>
+      </div>
+
       <div class="presets" aria-label="Presets">
         <button class="preset" data-preset="sky">🌤️ Sky</button>
         <button class="preset" data-preset="grass">🌿 Grass</button>
@@ -410,35 +498,50 @@
 
       <div class="grid">
         <div class="row">
-          <div class="label"><span class="sw" style="background:#00bcd4"></span> Cyan</div>
+          <div class="label">
+            <span class="sw" style="background:#00bcd4"></span>
+            <span class="labelText" data-default="Cyan" data-kid="Blue paint">Cyan</span>
+          </div>
           <button class="step" data-step="c" data-dir="-">−</button>
           <input id="c" type="range" min="0" max="100" value="0" />
           <button class="step" data-step="c" data-dir="+">+</button>
           <div class="pct" id="cPct">0%</div>
         </div>
         <div class="row">
-          <div class="label"><span class="sw" style="background:#ff2ea6"></span> Magenta</div>
+          <div class="label">
+            <span class="sw" style="background:#ff2ea6"></span>
+            <span class="labelText" data-default="Magenta" data-kid="Pink paint">Magenta</span>
+          </div>
           <button class="step" data-step="m" data-dir="-">−</button>
           <input id="m" type="range" min="0" max="100" value="0" />
           <button class="step" data-step="m" data-dir="+">+</button>
           <div class="pct" id="mPct">0%</div>
         </div>
         <div class="row">
-          <div class="label"><span class="sw" style="background:#ffd400"></span> Yellow</div>
+          <div class="label">
+            <span class="sw" style="background:#ffd400"></span>
+            <span class="labelText" data-default="Yellow" data-kid="Sun paint">Yellow</span>
+          </div>
           <button class="step" data-step="y" data-dir="-">−</button>
           <input id="y" type="range" min="0" max="100" value="0" />
           <button class="step" data-step="y" data-dir="+">+</button>
           <div class="pct" id="yPct">0%</div>
         </div>
         <div class="row">
-          <div class="label"><span class="sw" style="background:#000"></span> Black</div>
+          <div class="label">
+            <span class="sw" style="background:#000"></span>
+            <span class="labelText" data-default="Black" data-kid="Shadow paint">Black</span>
+          </div>
           <button class="step" data-step="k" data-dir="-">−</button>
           <input id="k" type="range" min="0" max="100" value="0" />
           <button class="step" data-step="k" data-dir="+">+</button>
           <div class="pct" id="kPct">0%</div>
         </div>
         <div class="row">
-          <div class="label"><span class="sw" style="background:#fff"></span> White</div>
+          <div class="label">
+            <span class="sw" style="background:#fff"></span>
+            <span class="labelText" data-default="White" data-kid="Snow paint">White</span>
+          </div>
           <button class="step" data-step="w" data-dir="-">−</button>
           <input id="w" type="range" min="0" max="100" value="0" />
           <button class="step" data-step="w" data-dir="+">+</button>
@@ -479,6 +582,10 @@
         <button class="action kid-only" id="surprise">Surprise me 🎉</button>
       </div>
       <div id="status" class="status is-hidden" role="status" aria-live="polite"></div>
+      <div class="stickers" aria-live="polite">
+        <div id="stickerRow" class="sticker-row" aria-label="Sticker collection"></div>
+        <div id="stickerMessage" class="sticker-message is-hidden">You earned a sticker!</div>
+      </div>
 
       <p class="hint">
         Touch tips: the slider thumbs are bigger, buttons hit 44px minimum, and +/− makes it easy for small hands. <strong>Try saving a swatch</strong> to start your palette.
@@ -515,6 +622,8 @@
         cmyLabel: $('cmyLabel'),
         hexCode: $('hexCode'),
         status: $('status'),
+        stickerRow: $('stickerRow'),
+        stickerMessage: $('stickerMessage'),
       },
       actions: {
         save: $('save'),
@@ -522,6 +631,8 @@
         reset: $('reset'),
         clear: $('clear'),
         surprise: $('surprise'),
+        newRound: $('newRound'),
+        checkTarget: $('checkTarget'),
         kidMode: $('kidMode'),
         gameMode: $('gameMode'),
         setTarget: $('setTarget'),
@@ -615,13 +726,24 @@
         try { localStorage.setItem(this.kidKey, on ? '1' : '0'); } catch {}
       },
 
-      loadGameMode() {
-        try { return localStorage.getItem(this.gameKey) === '1'; } catch { return false; }
+      loadStickerCount() {
+        try {
+          const raw = localStorage.getItem(this.stickerKey);
+          const parsed = Number.parseInt(raw ?? '0', 10);
+          return Number.isNaN(parsed) ? 0 : Math.max(0, parsed);
+        } catch {
+          return 0;
+        }
       },
 
-      saveGameMode(on) {
-        try { localStorage.setItem(this.gameKey, on ? '1' : '0'); } catch {}
+      saveStickerCount(count) {
+        try { localStorage.setItem(this.stickerKey, String(Math.max(0, count))); } catch {}
       }
+    };
+
+    const gameState = {
+      target: null,
+      round: 0,
     };
 
     const presets = {
@@ -633,6 +755,9 @@
       night: { c: 30, m: 30, y: 0,  k: 70, w: 0  },
       snow:  { c: 0,  m: 0,  y: 0,  k: 0,  w: 85 },
     };
+
+    const stickerEmojis = ['⭐', '🐶', '🦄'];
+    let lastMatchedKey = null;
 
     function render() {
       const s = state.read();
@@ -655,6 +780,23 @@
       elements.pct.y.textContent = `${s.y}%`;
       elements.pct.k.textContent = `${s.k}%`;
       elements.pct.w.textContent = `${s.w}%`;
+
+      checkForStickerMatch(s);
+    }
+
+    function renderTarget() {
+      const target = gameState.target;
+      if (!target) {
+        elements.output.targetSwatch.classList.add('is-empty');
+        elements.output.targetSwatch.style.background = '';
+        elements.output.targetPrompt.textContent = 'Press “New round” to get a challenge!';
+        return;
+      }
+
+      const { r, g, b } = state.cmykwToRgb(target.c, target.m, target.y, target.k, target.w);
+      elements.output.targetSwatch.classList.remove('is-empty');
+      elements.output.targetSwatch.style.background = `rgb(${r}, ${g}, ${b})`;
+      elements.output.targetPrompt.textContent = target.prompt;
     }
 
     function surprise() {
@@ -716,6 +858,53 @@
       }
     }
 
+    function renderStickers() {
+      const count = state.loadStickerCount();
+      const row = elements.output.stickerRow;
+      row.innerHTML = '';
+      if (!count) {
+        row.textContent = 'No stickers yet. Match a swatch to earn one!';
+        return;
+      }
+      for (let i = 0; i < count; i += 1) {
+        const span = document.createElement('span');
+        span.textContent = stickerEmojis[i % stickerEmojis.length];
+        row.appendChild(span);
+      }
+    }
+
+    function flashStickerMessage() {
+      const message = elements.output.stickerMessage;
+      message.classList.remove('is-hidden');
+      clearTimeout(message._timer);
+      message._timer = setTimeout(() => {
+        message.classList.add('is-hidden');
+      }, 1600);
+    }
+
+    function checkForStickerMatch(s) {
+      const swatches = state.loadSwatches();
+      if (!swatches.length) {
+        lastMatchedKey = null;
+        return;
+      }
+      const match = swatches.find(
+        (item) => item.c === s.c && item.m === s.m && item.y === s.y && item.k === s.k && item.w === s.w
+      );
+      if (match) {
+        const matchKey = `${s.c}-${s.m}-${s.y}-${s.k}-${s.w}`;
+        if (matchKey !== lastMatchedKey) {
+          lastMatchedKey = matchKey;
+          const nextCount = state.loadStickerCount() + 1;
+          state.saveStickerCount(nextCount);
+          renderStickers();
+          flashStickerMessage();
+        }
+        return;
+      }
+      lastMatchedKey = null;
+    }
+
     function pushSwatch() {
       const s = state.read();
       const { r, g, b } = state.cmykwToRgb(s.c, s.m, s.y, s.k, s.w);
@@ -741,6 +930,16 @@
       status._timer = setTimeout(() => {
         status.classList.add('is-hidden');
       }, 1400);
+    }
+
+    function flashGameStatus(message) {
+      const status = elements.output.gameStatus;
+      status.textContent = message;
+      status.classList.remove('is-hidden');
+      clearTimeout(status._timer);
+      status._timer = setTimeout(() => {
+        status.classList.add('is-hidden');
+      }, 2000);
     }
 
     async function copyHex() {
@@ -775,45 +974,70 @@
       document.body.classList.toggle('kid', !!on);
       elements.actions.kidMode.checked = !!on;
       state.saveKidMode(!!on);
+      document.querySelectorAll('.labelText').forEach((label) => {
+        const defaultText = label.dataset.default || label.textContent;
+        const kidText = label.dataset.kid || defaultText;
+        label.textContent = on ? kidText : defaultText;
+      });
       render();
       renderHistory();
     }
 
-    let targetHex = null;
-    const targetLabel = $('targetHex');
-
-    function setGameMode(on) {
-      document.body.classList.toggle('game', !!on);
-      elements.actions.gameMode.checked = !!on;
-      state.saveGameMode(!!on);
-    }
-
-    function setTarget() {
+    function newRound() {
       const randomStep = () => Math.round(Math.random() * 20) * 5;
-      const { r, g, b } = state.cmykwToRgb(
-        randomStep(),
-        randomStep(),
-        randomStep(),
-        randomStep(),
-        randomStep(),
-      );
-      targetHex = state.rgbToHex(r, g, b);
-      if (targetLabel) {
-        targetLabel.textContent = targetHex;
+      const useRandom = Math.random() < 0.35;
+      let target = null;
+
+      if (useRandom) {
+        target = {
+          c: randomStep(),
+          m: randomStep(),
+          y: randomStep(),
+          k: randomStep(),
+          w: randomStep(),
+          prompt: 'Make a magical mystery color!',
+        };
+      } else {
+        const choice = targetPrompts[Math.floor(Math.random() * targetPrompts.length)];
+        target = {
+          ...presets[choice.key],
+          prompt: choice.prompt,
+        };
       }
-      flashStatus(`Target set to ${targetHex}.`);
+
+      gameState.target = target;
+      gameState.round += 1;
+      renderTarget();
+      flashGameStatus(`Round ${gameState.round} ready!`);
     }
 
-    function checkMatch() {
-      if (!targetHex) {
-        flashStatus('Set a target first.');
+    function checkTarget() {
+      if (!gameState.target) {
+        flashGameStatus('Press “New round” to get a target color.');
         return;
       }
-      const currentHex = elements.output.hexCode.textContent;
-      if (currentHex === targetHex) {
-        flashStatus(`Perfect match! ${currentHex}`);
+
+      const current = state.read();
+      const currentRgb = state.cmykwToRgb(current.c, current.m, current.y, current.k, current.w);
+      const targetRgb = state.cmykwToRgb(
+        gameState.target.c,
+        gameState.target.m,
+        gameState.target.y,
+        gameState.target.k,
+        gameState.target.w
+      );
+
+      const distance = Math.hypot(
+        currentRgb.r - targetRgb.r,
+        currentRgb.g - targetRgb.g,
+        currentRgb.b - targetRgb.b
+      );
+
+      const threshold = 60;
+      if (distance <= threshold) {
+        flashGameStatus('You did it! 🎉 That’s a great match!');
       } else {
-        flashStatus(`Not yet. Target is ${targetHex}.`);
+        flashGameStatus('Not yet—keep mixing and try again!');
       }
     }
 
@@ -859,6 +1083,8 @@
       flashStatus('Cleared all swatches.');
     });
     elements.actions.surprise.addEventListener('click', surprise);
+    elements.actions.newRound.addEventListener('click', newRound);
+    elements.actions.checkTarget.addEventListener('click', checkTarget);
     elements.actions.kidMode.addEventListener('change', (e) => setKidMode(e.target.checked));
     elements.actions.gameMode.addEventListener('change', (e) => setGameMode(e.target.checked));
     elements.actions.setTarget.addEventListener('click', setTarget);
@@ -866,8 +1092,9 @@
 
     // Init
     setKidMode(state.loadKidMode());
-    setGameMode(state.loadGameMode());
+    renderStickers();
     render();
+    renderTarget();
     renderHistory();
   </script>
 </body>
