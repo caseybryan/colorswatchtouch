@@ -142,6 +142,49 @@
       margin-top: 14px;
     }
 
+    .target-area {
+      margin-top: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .target-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .target-title {
+      font-weight: 750;
+      letter-spacing: 0.2px;
+    }
+
+    .target-prompt {
+      margin-top: 4px;
+      font-size: 14px;
+      opacity: 0.85;
+    }
+
+    .target-swatch {
+      width: 110px;
+      height: 110px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(0,0,0,0.2);
+    }
+
+    .target-swatch.is-empty {
+      background: repeating-linear-gradient(
+        45deg,
+        rgba(255,255,255,0.08),
+        rgba(255,255,255,0.08) 10px,
+        rgba(0,0,0,0.15) 10px,
+        rgba(0,0,0,0.15) 20px
+      );
+    }
+
     .row {
       display: grid;
       grid-template-columns: 120px 52px 1fr 52px 64px;
@@ -300,6 +343,35 @@
     }
     .status.is-hidden { opacity: 0; }
 
+    .stickers {
+      margin-top: 12px;
+      display: grid;
+      gap: 6px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(0,0,0,0.22);
+      min-height: 44px;
+    }
+
+    .sticker-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      font-size: 20px;
+      letter-spacing: 2px;
+    }
+
+    .sticker-message {
+      font-size: 13px;
+      opacity: 0.9;
+      transition: opacity 0.2s ease;
+    }
+
+    .sticker-message.is-hidden {
+      opacity: 0;
+    }
+
     .history {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -380,6 +452,21 @@
             <div class="chipMeta" id="chipMeta">#FFFFFF</div>
           </div>
         </div>
+      </div>
+
+      <div class="target-area" aria-live="polite">
+        <div class="target-header">
+          <div>
+            <div class="target-title">Target color</div>
+            <div class="target-prompt" id="targetPrompt">Press “New round” to get a challenge!</div>
+          </div>
+          <div id="targetSwatch" class="target-swatch is-empty" aria-label="Target color swatch"></div>
+        </div>
+        <div class="btns">
+          <button class="action" id="newRound">New round</button>
+          <button class="action" id="checkTarget">Check</button>
+        </div>
+        <div id="gameStatus" class="game-status is-hidden" role="status" aria-live="polite"></div>
       </div>
 
       <div class="presets" aria-label="Presets">
@@ -472,6 +559,10 @@
         <button class="action kid-only" id="surprise">Surprise me 🎉</button>
       </div>
       <div id="status" class="status is-hidden" role="status" aria-live="polite"></div>
+      <div class="stickers" aria-live="polite">
+        <div id="stickerRow" class="sticker-row" aria-label="Sticker collection"></div>
+        <div id="stickerMessage" class="sticker-message is-hidden">You earned a sticker!</div>
+      </div>
 
       <p class="hint">
         Touch tips: the slider thumbs are bigger, buttons hit 44px minimum, and +/− makes it easy for small hands. <strong>Try saving a swatch</strong> to start your palette.
@@ -508,6 +599,8 @@
         cmyLabel: $('cmyLabel'),
         hexCode: $('hexCode'),
         status: $('status'),
+        stickerRow: $('stickerRow'),
+        stickerMessage: $('stickerMessage'),
       },
       actions: {
         save: $('save'),
@@ -515,6 +608,8 @@
         reset: $('reset'),
         clear: $('clear'),
         surprise: $('surprise'),
+        newRound: $('newRound'),
+        checkTarget: $('checkTarget'),
         kidMode: $('kidMode'),
       },
       history: {
@@ -525,6 +620,7 @@
     const state = {
       key: 'cmy_swatches',
       kidKey: 'cmy_kid_mode',
+      stickerKey: 'cmy_sticker_count',
       clamp01: (v) => Math.max(0, Math.min(1, v)),
       clampPct: (v) => Math.max(0, Math.min(100, Math.round(v))),
       toHex2: (n) => n.toString(16).padStart(2, '0').toUpperCase(),
@@ -602,7 +698,26 @@
 
       saveKidMode(on) {
         try { localStorage.setItem(this.kidKey, on ? '1' : '0'); } catch {}
+      },
+
+      loadStickerCount() {
+        try {
+          const raw = localStorage.getItem(this.stickerKey);
+          const parsed = Number.parseInt(raw ?? '0', 10);
+          return Number.isNaN(parsed) ? 0 : Math.max(0, parsed);
+        } catch {
+          return 0;
+        }
+      },
+
+      saveStickerCount(count) {
+        try { localStorage.setItem(this.stickerKey, String(Math.max(0, count))); } catch {}
       }
+    };
+
+    const gameState = {
+      target: null,
+      round: 0,
     };
 
     const presets = {
@@ -614,6 +729,9 @@
       night: { c: 30, m: 30, y: 0,  k: 70, w: 0  },
       snow:  { c: 0,  m: 0,  y: 0,  k: 0,  w: 85 },
     };
+
+    const stickerEmojis = ['⭐', '🐶', '🦄'];
+    let lastMatchedKey = null;
 
     function render() {
       const s = state.read();
@@ -636,6 +754,23 @@
       elements.pct.y.textContent = `${s.y}%`;
       elements.pct.k.textContent = `${s.k}%`;
       elements.pct.w.textContent = `${s.w}%`;
+
+      checkForStickerMatch(s);
+    }
+
+    function renderTarget() {
+      const target = gameState.target;
+      if (!target) {
+        elements.output.targetSwatch.classList.add('is-empty');
+        elements.output.targetSwatch.style.background = '';
+        elements.output.targetPrompt.textContent = 'Press “New round” to get a challenge!';
+        return;
+      }
+
+      const { r, g, b } = state.cmykwToRgb(target.c, target.m, target.y, target.k, target.w);
+      elements.output.targetSwatch.classList.remove('is-empty');
+      elements.output.targetSwatch.style.background = `rgb(${r}, ${g}, ${b})`;
+      elements.output.targetPrompt.textContent = target.prompt;
     }
 
     function surprise() {
@@ -697,6 +832,53 @@
       }
     }
 
+    function renderStickers() {
+      const count = state.loadStickerCount();
+      const row = elements.output.stickerRow;
+      row.innerHTML = '';
+      if (!count) {
+        row.textContent = 'No stickers yet. Match a swatch to earn one!';
+        return;
+      }
+      for (let i = 0; i < count; i += 1) {
+        const span = document.createElement('span');
+        span.textContent = stickerEmojis[i % stickerEmojis.length];
+        row.appendChild(span);
+      }
+    }
+
+    function flashStickerMessage() {
+      const message = elements.output.stickerMessage;
+      message.classList.remove('is-hidden');
+      clearTimeout(message._timer);
+      message._timer = setTimeout(() => {
+        message.classList.add('is-hidden');
+      }, 1600);
+    }
+
+    function checkForStickerMatch(s) {
+      const swatches = state.loadSwatches();
+      if (!swatches.length) {
+        lastMatchedKey = null;
+        return;
+      }
+      const match = swatches.find(
+        (item) => item.c === s.c && item.m === s.m && item.y === s.y && item.k === s.k && item.w === s.w
+      );
+      if (match) {
+        const matchKey = `${s.c}-${s.m}-${s.y}-${s.k}-${s.w}`;
+        if (matchKey !== lastMatchedKey) {
+          lastMatchedKey = matchKey;
+          const nextCount = state.loadStickerCount() + 1;
+          state.saveStickerCount(nextCount);
+          renderStickers();
+          flashStickerMessage();
+        }
+        return;
+      }
+      lastMatchedKey = null;
+    }
+
     function pushSwatch() {
       const s = state.read();
       const { r, g, b } = state.cmykwToRgb(s.c, s.m, s.y, s.k, s.w);
@@ -722,6 +904,16 @@
       status._timer = setTimeout(() => {
         status.classList.add('is-hidden');
       }, 1400);
+    }
+
+    function flashGameStatus(message) {
+      const status = elements.output.gameStatus;
+      status.textContent = message;
+      status.classList.remove('is-hidden');
+      clearTimeout(status._timer);
+      status._timer = setTimeout(() => {
+        status.classList.add('is-hidden');
+      }, 2000);
     }
 
     async function copyHex() {
@@ -763,6 +955,64 @@
       });
       render();
       renderHistory();
+    }
+
+    function newRound() {
+      const randomStep = () => Math.round(Math.random() * 20) * 5;
+      const useRandom = Math.random() < 0.35;
+      let target = null;
+
+      if (useRandom) {
+        target = {
+          c: randomStep(),
+          m: randomStep(),
+          y: randomStep(),
+          k: randomStep(),
+          w: randomStep(),
+          prompt: 'Make a magical mystery color!',
+        };
+      } else {
+        const choice = targetPrompts[Math.floor(Math.random() * targetPrompts.length)];
+        target = {
+          ...presets[choice.key],
+          prompt: choice.prompt,
+        };
+      }
+
+      gameState.target = target;
+      gameState.round += 1;
+      renderTarget();
+      flashGameStatus(`Round ${gameState.round} ready!`);
+    }
+
+    function checkTarget() {
+      if (!gameState.target) {
+        flashGameStatus('Press “New round” to get a target color.');
+        return;
+      }
+
+      const current = state.read();
+      const currentRgb = state.cmykwToRgb(current.c, current.m, current.y, current.k, current.w);
+      const targetRgb = state.cmykwToRgb(
+        gameState.target.c,
+        gameState.target.m,
+        gameState.target.y,
+        gameState.target.k,
+        gameState.target.w
+      );
+
+      const distance = Math.hypot(
+        currentRgb.r - targetRgb.r,
+        currentRgb.g - targetRgb.g,
+        currentRgb.b - targetRgb.b
+      );
+
+      const threshold = 60;
+      if (distance <= threshold) {
+        flashGameStatus('You did it! 🎉 That’s a great match!');
+      } else {
+        flashGameStatus('Not yet—keep mixing and try again!');
+      }
     }
 
     // Wire sliders
@@ -807,11 +1057,15 @@
       flashStatus('Cleared all swatches.');
     });
     elements.actions.surprise.addEventListener('click', surprise);
+    elements.actions.newRound.addEventListener('click', newRound);
+    elements.actions.checkTarget.addEventListener('click', checkTarget);
     elements.actions.kidMode.addEventListener('change', (e) => setKidMode(e.target.checked));
 
     // Init
     setKidMode(state.loadKidMode());
+    renderStickers();
     render();
+    renderTarget();
     renderHistory();
   </script>
 </body>
