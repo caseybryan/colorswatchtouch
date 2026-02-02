@@ -336,6 +336,7 @@
     body.kid .chip { font-size: 18px; }
     body.kid .chipMeta { display: none; }
     body.kid .status { display: none; }
+    body.kid .pct { display: none; }
 
     @media (max-width: 860px) {
       .wrap { grid-template-columns: 1fr; }
@@ -393,35 +394,50 @@
 
       <div class="grid">
         <div class="row">
-          <div class="label"><span class="sw" style="background:#00bcd4"></span> Cyan</div>
+          <div class="label">
+            <span class="sw" style="background:#00bcd4"></span>
+            <span class="labelText" data-default="Cyan" data-kid="Blue paint">Cyan</span>
+          </div>
           <button class="step" data-step="c" data-dir="-">−</button>
           <input id="c" type="range" min="0" max="100" value="0" />
           <button class="step" data-step="c" data-dir="+">+</button>
           <div class="pct" id="cPct">0%</div>
         </div>
         <div class="row">
-          <div class="label"><span class="sw" style="background:#ff2ea6"></span> Magenta</div>
+          <div class="label">
+            <span class="sw" style="background:#ff2ea6"></span>
+            <span class="labelText" data-default="Magenta" data-kid="Pink paint">Magenta</span>
+          </div>
           <button class="step" data-step="m" data-dir="-">−</button>
           <input id="m" type="range" min="0" max="100" value="0" />
           <button class="step" data-step="m" data-dir="+">+</button>
           <div class="pct" id="mPct">0%</div>
         </div>
         <div class="row">
-          <div class="label"><span class="sw" style="background:#ffd400"></span> Yellow</div>
+          <div class="label">
+            <span class="sw" style="background:#ffd400"></span>
+            <span class="labelText" data-default="Yellow" data-kid="Sun paint">Yellow</span>
+          </div>
           <button class="step" data-step="y" data-dir="-">−</button>
           <input id="y" type="range" min="0" max="100" value="0" />
           <button class="step" data-step="y" data-dir="+">+</button>
           <div class="pct" id="yPct">0%</div>
         </div>
         <div class="row">
-          <div class="label"><span class="sw" style="background:#000"></span> Black</div>
+          <div class="label">
+            <span class="sw" style="background:#000"></span>
+            <span class="labelText" data-default="Black" data-kid="Shadow paint">Black</span>
+          </div>
           <button class="step" data-step="k" data-dir="-">−</button>
           <input id="k" type="range" min="0" max="100" value="0" />
           <button class="step" data-step="k" data-dir="+">+</button>
           <div class="pct" id="kPct">0%</div>
         </div>
         <div class="row">
-          <div class="label"><span class="sw" style="background:#fff"></span> White</div>
+          <div class="label">
+            <span class="sw" style="background:#fff"></span>
+            <span class="labelText" data-default="White" data-kid="Snow paint">White</span>
+          </div>
           <button class="step" data-step="w" data-dir="-">−</button>
           <input id="w" type="range" min="0" max="100" value="0" />
           <button class="step" data-step="w" data-dir="+">+</button>
@@ -740,6 +756,11 @@
       document.body.classList.toggle('kid', !!on);
       elements.actions.kidMode.checked = !!on;
       state.saveKidMode(!!on);
+      document.querySelectorAll('.labelText').forEach((label) => {
+        const defaultText = label.dataset.default || label.textContent;
+        const kidText = label.dataset.kid || defaultText;
+        label.textContent = on ? kidText : defaultText;
+      });
       render();
       renderHistory();
     }
